@@ -1,5 +1,5 @@
 /**
- * Use Logger instead of console.log everywhere. console.log usage will result in point deduction per assessment spec.
+ * Use Logger instead of console.log everywhere.
  */
 
 type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG' | 'SUCCESS';
@@ -43,35 +43,24 @@ class LoggingMiddleware {
     if (ctx.includes('page') || ctx.includes('view') || ctx === 'dashboard') return 'page';
     // Component detection
     if (ctx.includes('card') || ctx.includes('component') || ctx.includes('feed') || ctx.includes('inbox')) return 'component';
-    // State management detection — AffordMed uses 'state' (not 'store')
     if (ctx.includes('store') || ctx.includes('context') || ctx.includes('state')) return 'state';
-    // Services, engines, logger, and other logic → middleware
-    // Valid AffordMed frontend packages: state | component | hook | page | middleware
     return 'middleware';
   }
 
   private async postToRemote(level: LogLevel, context: string, message: string) {
-    // Only attempt if we have a token (safe-guard for client/server env)
-    // Note: In Next.js, this needs to be NEXT_PUBLIC_ if called from client
     const token = process.env.NEXT_PUBLIC_AUTH_TOKEN;
     if (!token) return;
 
     try {
-      // Fire-and-forget logic: we don't await this in the main log flow
-      // Route logs through our internal proxy to avoid CORS issues
-
-      // Map internal levels to AffordMed-accepted values (lowercase only):
-      // Allowed: debug | info | warn | error | fatal
       const levelMap: Record<LogLevel, string> = {
         DEBUG: 'debug',
         INFO: 'info',
         WARN: 'warn',
         ERROR: 'error',
-        SUCCESS: 'info', // 'success' not in spec, map to info
+        SUCCESS: 'info',
       };
       const remoteLevel = levelMap[level] ?? 'info';
 
-      // Map context to an AffordMed-accepted package value.
       const remotePackage = this.mapContextToPackage(context);
 
       fetch('/api/logs', {
@@ -84,11 +73,9 @@ class LoggingMiddleware {
           stack: 'frontend',
           level: remoteLevel,
           package: remotePackage,
-          // AffordMed API: message must be 5–48 characters
           message: `[${context}] ${message}`.slice(0, 48),
         }),
       }).catch(() => {
-        // Silently catch fetch errors to satisfy "never throw/crash" rule
       });
     } catch {
       // Catch synchronous errors
@@ -115,7 +102,6 @@ class LoggingMiddleware {
       
       const logString = `[${entry.timestamp}] ${color}${level}${reset} [${context}] ${message}`;
       
-      // Assessment requirement: No console.log, only console.info inside emit/log
       console.info(logString, data ?? '');
     }
   }

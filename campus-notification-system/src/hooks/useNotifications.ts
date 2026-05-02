@@ -23,7 +23,6 @@ export function useNotifications() {
   const CONTEXT = 'useNotifications';
   
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  // Stable snapshot of the priority inbox — order never changes after first load
   const [stablePriorityInbox, setStablePriorityInbox] = useState<Notification[]>([]);
   const prioritySnapshotTaken = useRef<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -61,8 +60,6 @@ export function useNotifications() {
         ...n,
         isNew: !viewedIdsRef.current.has(n.id)
       }));
-      // Snapshot the priority order ONCE — rank all fetched items (read or unread)
-      // and lock the order. Subsequent mark-as-read only toggles isNew in-place.
       if (!prioritySnapshotTaken.current) {
         prioritySnapshotTaken.current = true;
         const ranked = getTopPriorityNotifications(augmented, 10) as Notification[];
@@ -112,8 +109,6 @@ export function useNotifications() {
     loadPriority();
   }, [loadPriority]);
 
-  // Priority Inbox — stable order, never re-sorted or filtered after snapshot
-  // isNew flag updates in-place when markAsViewed is called
   const priorityInbox = stablePriorityInbox;
 
   // Mark as viewed
@@ -136,7 +131,6 @@ export function useNotifications() {
       return next;
     });
 
-    // Update isNew flag in-place — never remove or reorder the priority inbox
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isNew: false } : n));
     setStablePriorityInbox(prev => prev.map(n => n.id === id ? { ...n, isNew: false } : n));
   }, []);

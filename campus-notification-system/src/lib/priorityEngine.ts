@@ -14,9 +14,6 @@ const WEIGHT_MAP: Record<string, number> = {
   'Event': 1,
 };
 
-/**
- * Returns a priority label based on notification type
- */
 export function getWeightLabel(type: string): 'High' | 'Medium' | 'Low' {
   const weight = WEIGHT_MAP[type] || 0;
   if (weight >= 3) return 'High';
@@ -24,9 +21,6 @@ export function getWeightLabel(type: string): 'High' | 'Medium' | 'Low' {
   return 'Low';
 }
 
-/**
- * Returns a MUI color string based on notification type
- */
 export function getTypeColor(type: string): 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' | 'default' {
   const weight = WEIGHT_MAP[type] || 0;
   switch (weight) {
@@ -37,10 +31,6 @@ export function getTypeColor(type: string): 'primary' | 'secondary' | 'info' | '
   }
 }
 
-/**
- * Calculates top priority notifications based on weight and recency.
- * Score = (weight * 100) + normalizedRecency
- */
 export function getTopPriorityNotifications(notifications: Notification[], topN = 10): Notification[] {
   const CONTEXT = 'PriorityEngine';
   
@@ -51,9 +41,7 @@ export function getTopPriorityNotifications(notifications: Notification[], topN 
 
   Logger.info(CONTEXT, `Processing ${notifications.length} notifications to find top ${topN}`);
 
-  // Convert timestamps to numbers once
   const notificationsWithTime = notifications.map(n => {
-    // API returns "YYYY-MM-DD HH:mm:ss". Convert to ISO "YYYY-MM-DDTHH:mm:ss" for constructor
     const isoString = n.timestamp.includes(' ') && !n.timestamp.includes('T') 
       ? n.timestamp.replace(' ', 'T') 
       : n.timestamp;
@@ -77,7 +65,6 @@ export function getTopPriorityNotifications(notifications: Notification[], topN 
   const scoredNotifications = notificationsWithTime.map(n => {
     const weight = WEIGHT_MAP[n.type] || 0;
     
-    // Normalized recency: (itemTimestamp - oldestTimestamp) / (newestTimestamp - oldestTimestamp)
     const normalizedRecency = timeRange === 0 || isNaN(n.time) 
       ? 1 
       : (n.time - oldestTimestamp) / timeRange;
@@ -87,7 +74,6 @@ export function getTopPriorityNotifications(notifications: Notification[], topN 
     return { ...n, score };
   });
 
-  // Sort descending by score
   const sorted = scoredNotifications.sort((a, b) => {
     if (isNaN(a.score)) return 1;
     if (isNaN(b.score)) return -1;
@@ -96,11 +82,10 @@ export function getTopPriorityNotifications(notifications: Notification[], topN 
 
   Logger.success(CONTEXT, `Successfully ranked notifications. Highest score: ${sorted[0]?.score.toFixed(4)}`);
 
-  // Return top N and remove the temporary fields
   return sorted.slice(0, topN).map(n => ({
     id: n.id,
     type: n.type,
-    title: n.title || n.message.substring(0, 30), // Use message snippet if title is missing
+    title: n.title || n.message.substring(0, 30),
     message: n.message,
     timestamp: n.timestamp,
   }));

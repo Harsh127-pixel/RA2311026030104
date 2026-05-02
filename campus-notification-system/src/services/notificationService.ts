@@ -17,9 +17,6 @@ export interface ApiResponse {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE;
 
-/**
- * Helper to get consistent headers for API calls
- */
 export function getAuthHeaders() {
   return {
     'Content-Type': 'application/json',
@@ -27,9 +24,6 @@ export function getAuthHeaders() {
   };
 }
 
-/**
- * Fetches notifications from the evaluation service API
- */
 export async function fetchNotifications(params: FetchParams): Promise<ApiResponse> {
   const CONTEXT = 'NotificationService';
   
@@ -39,15 +33,12 @@ export async function fetchNotifications(params: FetchParams): Promise<ApiRespon
     throw new Error(errorMsg);
   }
 
-  // Build query parameters
   const url = new URL(BASE_URL, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
   
-  // 1. Filter by Type (Placement, Result, Event) -> Maps to API's 'notification_type'
   if (params.type) {
     url.searchParams.append('notification_type', params.type);
   }
   
-  // 2. Pagination
   if (params.page) url.searchParams.append('page', params.page.toString());
   if (params.limit) url.searchParams.append('limit', params.limit.toString());
 
@@ -76,7 +67,6 @@ export async function fetchNotifications(params: FetchParams): Promise<ApiRespon
       timestamp?: string;
     }
 
-    // Map PascalCase API fields to internal camelCase
     const notifications = (rawData.notifications || []).map((n: RawNotification) => ({
       id: n.ID || n.id || '',
       type: n.Type || n.type || '',
