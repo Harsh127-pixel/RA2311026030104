@@ -35,7 +35,7 @@ class LoggingMiddleware {
     return LoggingMiddleware.instance;
   }
 
-  private mapContextToPackage(context: string): 'component' | 'hook' | 'page' | 'store' | 'util' {
+  private mapContextToPackage(context: string): 'component' | 'hook' | 'page' | 'state' | 'middleware' {
     const ctx = context.toLowerCase();
     // Hook detection (standard 'use' prefix)
     if (ctx.startsWith('use') || ctx.includes('hook')) return 'hook';
@@ -43,21 +43,38 @@ class LoggingMiddleware {
     if (ctx.includes('page') || ctx.includes('view') || ctx === 'dashboard') return 'page';
     // Component detection
     if (ctx.includes('card') || ctx.includes('component') || ctx.includes('feed') || ctx.includes('inbox')) return 'component';
-    // Store/State detection
-    if (ctx.includes('store') || ctx.includes('context') || ctx.includes('state')) return 'store';
-    // Default to util for logic/services
-    return 'util';
+    // State management detection — AffordMed uses 'state' (not 'store')
+    if (ctx.includes('store') || ctx.includes('context') || ctx.includes('state')) return 'state';
+    // Services, engines, logger, and other logic → middleware
+    // Valid AffordMed frontend packages: state | component | hook | page | middleware
+    return 'middleware';
   }
 
   private async postToRemote(level: LogLevel, context: string, message: string) {
     // Only attempt if we have a token (safe-guard for client/server env)
     // Note: In Next.js, this needs to be NEXT_PUBLIC_ if called from client
-    const token = process.env.NEXT_PUBLIC_AFFORDMED_AUTH_TOKEN || process.env.AFFORDMED_AUTH_TOKEN;
+    const token = process.env.NEXT_PUBLIC_AUTH_TOKEN;
     if (!token) return;
 
     try {
       // Fire-and-forget logic: we don't await this in the main log flow
-      fetch('http://20.207.122.201/evaluation-service/logs', {
+      // Route logs through our internal proxy to avoid CORS issues
+
+      // Map internal levels to AffordMed-accepted values (lowercase only):
+      // Allowed: debug | info | warn | error | fatal
+      const levelMap: Record<LogLevel, string> = {
+        DEBUG: 'debug',
+        INFO: 'info',
+        WARN: 'warn',
+        ERROR: 'error',
+        SUCCESS: 'info', // 'success' not in spec, map to info
+      };
+      const remoteLevel = levelMap[level] ?? 'info';
+
+      // Map context to an AffordMed-accepted package value.
+      const remotePackage = this.mapContextToPackage(context);
+
+      fetch('/api/logs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,9 +82,10 @@ class LoggingMiddleware {
         },
         body: JSON.stringify({
           stack: 'frontend',
-          level: level.toLowerCase(),
-          package: this.mapContextToPackage(context),
-          message: message,
+          level: remoteLevel,
+          package: remotePackage,
+          // AffordMed API: message must be 5–48 characters
+          message: `[${context}] ${message}`.slice(0, 48),
         }),
       }).catch(() => {
         // Silently catch fetch errors to satisfy "never throw/crash" rule
